@@ -9,9 +9,7 @@ const createPost = (req, res) => {
   };
 
   Post.create(newPostData, (err, result) => {
-    if (err) {
-      return res.status(400).json({ error: err.message });
-    }
+    
     res.status(201).json({ message: 'Post created!', postId: result.insertId });
   });
 };
@@ -19,9 +17,7 @@ const createPost = (req, res) => {
 // Get all posts
 const getAllPosts = (req, res) => {
   Post.getAll((err, results) => {
-    if (err) {
-      return res.status(400).json({ error: err.message });
-    }
+  
     res.json(results);
   });
 };
