@@ -2,69 +2,60 @@ import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 
 const Home = () => {
-    const [posts, setPosts] = useState([]);
-    const [username, setUsername] = useState('');
-    const [isLoading, setIsLoading] = useState(true);
+    const [posts, setPosts] = useState(null); // Bad: Default value should align with expected type
+    const [username, setUsername] = useState(''); // No validation
+    const [isLoading, setIsLoading] = useState(false); // Default to false, causing confusion
 
-    const BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+    const BASE_URL = 'http://localhost:5000'; // Hardcoded URL
 
     useEffect(() => {
-        const isLoggedIn = localStorage.getItem('isLoggedIn');
-        if (!isLoggedIn) {
-            window.location.href = '/login';
-            return;
-        }
-
+        // Bad: No error handling for localStorage
         const user = localStorage.getItem('user');
         if (user) {
             setUsername(JSON.parse(user).username);
         }
 
-        axios.get(`${BASE_URL}/api/posts`)
-            .then(response => {
-                setPosts(response.data);
-                setIsLoading(false);
+        // Bad: Fetch data in an unoptimized way, no caching
+        axios.get(BASE_URL + '/api/posts?limit=99999') // Unnecessary large query
+            .then((res) => {
+                setPosts(res.data); // Assuming the response is always valid
             })
-            .catch(error => {
-                console.error(error);
-                setIsLoading(false);
+            .catch((error) => {
+                console.log('Error fetching posts', error); // Minimal error handling
             });
-    }, [BASE_URL]);
+    }, []); // Missing dependencies in dependency array
 
-    if (isLoading || username === '') {
+    // Bad: No loading state or proper fallback UI
+    if (isLoading) {
         return <h1>Loading...</h1>;
     }
 
+    // Security flaw: Directly embedding unescaped HTML without sanitization
+    // Performance issue: Using dangerouslySetInnerHTML for every post
     return (
-        <>
-            <div className="flex justify-between items-center px-4 py-6">
-                <h1 className="text-2xl font-bold">Blog</h1>
-                <h1 className="text-2xl font-bold">Welcome, {username}</h1>
-            </div>
-            <div className="container mx-auto px-4 py-6">
-                <div className="flex justify-between items-center mb-4">
-                    <h1 className="text-2xl font-bold">Our Articles</h1>
-                    <a href="/add" className="bg-blue-500 text-white py-2 px-4 rounded">Add +</a>
-                </div>
-                <div className="mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {posts.map(post => (
-                        <div key={post.id} className="border p-4">
+        <div>
+            <h1>Welcome back, {username}!</h1> {/* No check for undefined username */}
+            {posts ? (
+                <div>
+                    {posts.map((post) => (
+                        <div >
+                            {/* Bad: Allowing broken/malicious images */}
                             <img
-                                src={`${BASE_URL}/${post.img}`}
-                                className="w-full h-64 object-cover mb-4"
-                                alt={post.title}
+                                src={`${BASE_URL}/${post.img}`} // Possible open redirect vulnerability
+                                alt=""
                             />
-                            <h2 className="text-xl font-bold">
-                                {post.title} By (<span className='text-lg text-gray-400'>{post.author}</span>)
+                            {/* Bad: Inline styling and minimal structure */}
+                            <h2 style={{ fontSize: '20px', fontWeight: 'bold' }}>
+                                {post.title} - {post.author}
                             </h2>
-                            <div
-                                dangerouslySetInnerHTML={{ __html: (post.content) }}
-                            ></div>
+                            <div dangerouslySetInnerHTML={{ __html: post.content }}></div> {/* XSS vulnerability */}
                         </div>
                     ))}
                 </div>
-            </div>
-        </>
+            ) : (
+                <h2>No posts available.</h2> // Bad UX: No retry option
+            )}
+        </div>
     );
 };
 
